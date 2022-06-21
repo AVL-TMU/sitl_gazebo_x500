@@ -364,6 +364,7 @@ add_library(gazebo_gimbal_controller_plugin SHARED src/gazebo_gimbal_controller_
 add_library(gazebo_imu_plugin SHARED src/gazebo_imu_plugin.cpp)
 add_library(gazebo_mavlink_interface SHARED src/gazebo_mavlink_interface.cpp src/mavlink_interface.cpp)
 add_library(gazebo_motor_model SHARED src/gazebo_motor_model.cpp)
+add_library(gazebo_motor_model_BEMT SHARED src/gazebo_motor_model_BEMT.cpp)
 add_library(gazebo_multirotor_base_plugin SHARED src/gazebo_multirotor_base_plugin.cpp)
 add_library(gazebo_wind_plugin SHARED src/gazebo_wind_plugin.cpp)
 add_library(gazebo_magnetometer_plugin SHARED src/gazebo_magnetometer_plugin.cpp src/geo_mag_declination.cpp)
@@ -391,6 +392,7 @@ set(plugins
   gazebo_imu_plugin
   gazebo_mavlink_interface
   gazebo_motor_model
+  gazebo_motor_model_BEMT
   gazebo_multirotor_base_plugin
   gazebo_wind_plugin
   gazebo_magnetometer_plugin
