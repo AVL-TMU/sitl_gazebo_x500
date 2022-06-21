@@ -121,7 +121,7 @@
         <geometry>
           <mesh>
             <scale>1 1 1</scale>
-            <uri>model://x500/meshes/x500_prop_ccw.stl</uri>
+            <uri>model://x500/meshes/propeller_ccw.stl</uri>
           </mesh>
         </geometry>
         <material>
@@ -186,12 +186,12 @@
         <geometry>
           <mesh>
             <scale>1 1 1</scale>
-            <uri>model://x500/meshes/x500_prop_ccw.stl</uri>
+            <uri>model://x500/meshes/propeller_ccw.stl</uri>
           </mesh>
         </geometry>
         <material>
           <script>
-            <name>Gazebo/DarkGrey</name>
+            <name>Gazebo/Red</name>
             <uri>file://media/materials/scripts/gazebo.material</uri>
           </script>
         </material>
@@ -251,7 +251,7 @@
         <geometry>
           <mesh>
             <scale>1 1 1</scale>
-            <uri>model://x500/meshes/x500_prop_cw.stl</uri>
+            <uri>model://x500/meshes/propeller_cw.stl</uri>
           </mesh>
         </geometry>
         <material>
@@ -316,12 +316,12 @@
         <geometry>
           <mesh>
             <scale>1 1 1</scale>
-            <uri>model://x500/meshes/x500_prop_cw.stl</uri>
+            <uri>model://x500/meshes/propeller_cw.stl</uri>
           </mesh>
         </geometry>
         <material>
           <script>
-            <name>Gazebo/DarkGrey</name>
+            <name>Gazebo/Red</name>
             <uri>file://media/materials/scripts/gazebo.material</uri>
           </script>
         </material>
