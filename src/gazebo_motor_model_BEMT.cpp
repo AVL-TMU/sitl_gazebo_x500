@@ -22,6 +22,8 @@
 #include "gazebo_motor_model_BEMT.h"
 #include <ignition/math.hh>
 
+#include <filesystem>
+
 namespace gazebo {
 
 GazeboMotorModel::~GazeboMotorModel() {
@@ -158,6 +160,7 @@ void GazeboMotorModel::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf) {
 
   // Create the first order filter.
   rotor_velocity_filter_.reset(new FirstOrderFilter<double>(time_constant_up_, time_constant_down_, ref_motor_rot_vel_));
+
 blade_.raduis.resize(20);
 blade_.raduis << 0.0114, 0.0229, 0.0343, 0.0457, 0.0572, 0.0686, 0.0800, 0.0914, 0.1029, 0.1143, 0.1257, 0.1372, 0.1486, 0.1600, 0.1715, 0.1829, 0.1943, 0.2057, 0.2172, 0.2286; 
 
@@ -174,16 +177,22 @@ blade_.beta.resize(20);
 blade_.beta << 1.29,1.29,15.763,22.586,21.375,19.727,17.023,15.476,13.973,12.472,11.9,10.937,10.536,9.683,9.268,8.885,8.336,7.352,7.123,7.526;
 
 blade_.station = 20; blade_.blades = 2; blade_.scale_Raduis = 1; blade_.modify_Pitch = -1.5;
-// blade_.raduis = Eigen::ArrayXd::Random(1,20);
-// blade_.r_R = Eigen::ArrayXd::LinSpaced(0.05,0.05,1);
-// blade_.chord = Eigen::ArrayXd::Random(1,20);
-// blade_.c_R = Eigen::ArrayXd::Random(1,20);
-// blade_.beta = Eigen::ArrayXd::Random(1,20);
+
 blade_.airfoil ={"airfoil5","airfoil5","airfoil5","airfoil5","airfoil5","airfoil10","airfoil10","airfoil10","airfoil10","airfoil10","airfoil10","airfoil10",
 "airfoil15","airfoil15","airfoil15","airfoil15","airfoil15","airfoil15","airfoil15","airfoil15"};
 
 oper_.azimuth_Num = 8;
 
+std::string filepath_airfoil5 = "/home/aminys/PX4-Autopilot/Tools/sitl_gazebo/resources/airfoil_database/airfoil5_coeff_database.txt";
+loadAirfoilDatabase(BladePtr->airfoil5_database,filepath_airfoil5);
+
+
+std::string filepath_airfoil10 = "/home/aminys/PX4-Autopilot/Tools/sitl_gazebo/resources/airfoil_database/airfoil10_coeff_database.txt";
+loadAirfoilDatabase(BladePtr->airfoil10_database,filepath_airfoil10);
+
+
+std::string filepath_airfoil15 = "/home/aminys/PX4-Autopilot/Tools/sitl_gazebo/resources/airfoil_database/airfoil15_coeff_database.txt";
+loadAirfoilDatabase(BladePtr->airfoil15_database,filepath_airfoil15);
 
 }
 
@@ -262,16 +271,27 @@ void GazeboMotorModel::UpdateForcesAndMoments() {
   double scalar = 1 - vel / 25.0; // at 25 m/s the rotor will not produce any force anymore
   scalar = ignition::math::clamp(scalar, 0.0, 1.0);
 
+  // FlowPtr->V = vel;
 
-  FlowPtr->V = vel;
-  FlowPtr->inflow_Angle;
-  OperPtr-> rps = real_motor_velocity ;
+  FlowPtr->V = 5.0;
+  FlowPtr->inflow_Angle = 10.0* M_PI/180.0;
+  // OperPtr-> rps = real_motor_velocity ;
+  OperPtr-> rps = 3000.0;
 
   OperPtr->inflow_Type = 1;
   OperPtr->toggle_Visc = 1;  // 1 -> "on", 0 -> "off"
   OperPtr->toggle_Vi = 1;    // 1 -> "on", 0 -> "off"
 
   BEMT(BladePtr,FlowPtr,OperPtr);
+
+
+
+
+
+
+
+
+
 
   // Apply a force to the link.
   link_->AddRelativeForce(ignition::math::Vector3d(0, 0, force * scalar));
@@ -411,90 +431,12 @@ double J = V/(_oper->rps*2*R);  // Propeller advance ratio.
 // Global solidity. Excluding hub area
 double global_sigma = (B*trapz(y_Span,chord))/((M_PI*(R*R))-(M_PI*(y_Span.coeff(0)*y_Span.coeff(0))));  //Sectional solidity ratio.
 
-Eigen::ArrayXd X;
-X.resize(7);
-X << 1,2,3,4,5,6,7; 
-
-Eigen::ArrayXXd Y;
-Y.resize(7,3);
-Y << 10,20,30,
-     11,21,31,
-     12,22,32,
-     13,23,33,
-     14,24,34,
-     15,25,35,
-     16,26,36;
-          
-
-int m = Y.rows();
-int n = Y.cols();
-int sizeX = X.size();
-
-// Eigen::ArrayXd v = Eigen::ArrayXd::LinSpaced(20,0,19);
-// std::cout << "Input:" << std::endl << X << std::endl;
-Eigen::ArrayXd h = X.tail(sizeX-1)-X.head(sizeX-1);
-// std::cout << "no_of_rows="<<m <<"  no_of_cols="<<n<<std::endl ;
-// std::cout << "h =" << h <<std::endl ;
-
-Eigen::ArrayXd dx1 = h.head(h.size()-1);
-Eigen::ArrayXd dx2 = h.tail(h.size()-1);
-
-Eigen::ArrayXd Alpha2 = (dx1+dx2)/dx1/6.0;
-Eigen::ArrayXd a0 = Alpha2*(2*dx1-dx2);
-Eigen::ArrayXd a1 = Alpha2*(dx1+dx2)*(dx1+dx2)/dx2;
-Eigen::ArrayXd a2 = Alpha2*dx1/dx2*(2*dx1-dx2);
-
-Eigen::Map<Eigen::ArrayXd,0,Eigen::InnerStride<2>> a0_2(a0.data(), std::round(a0.size()/2.0));
-Eigen::Map<Eigen::ArrayXd,0,Eigen::InnerStride<2>> a1_2(a1.data(), std::round(a1.size()/2.0));
-Eigen::Map<Eigen::ArrayXd,0,Eigen::InnerStride<2>> a2_2(a2.data(), std::round(a2.size()/2.0));
-
-// Eigen::MatrixXf M1 = Eigen::MatrixXf::Random(3,8);
-// // std::cout << "Column major input:\n" << std::endl << M1 << "\n\n";
-// Eigen::MatrixXf even_rows = Eigen::MatrixXf::Map(M1.data(),   2, 8, Eigen::Stride<Eigen::Dynamic,2>(3,2));
-// std::cout << "1 column over 3:\n" << std::endl << even_rows << "\n\n";
-
-Eigen::ArrayXXd even_rows = Eigen::ArrayXXd::Map(Y.data(),   4, 3, Eigen::Stride<Eigen::Dynamic,2>(7,2));
-std::cout << "1 column over 3:\n" << std::endl << even_rows << "\n\n";
-
-
-
-
-
-// Eigen::ArrayXXd M1;
-// M1.resize(3,8);
-// M1 <<10,20,30,40,50,60,70,80,
-//      11,21,31,41,51,61,71,81,
-//      12,22,32,42,52,62,72,82;
-
-
-
-// std::cout <<"M1 =\n"<< M1 <<std::endl <<std::endl;
-
-// Eigen::Map<Eigen::ArrayXd,0,Eigen::Stride<Eigen::Dynamic,3>> M2(M1.data(), Y.rows(), (Y.cols()+2)/3,Eigen::Stride<Eigen::Dynamic,3>(M1.outerStride(),3));
-
-// std::cout <<"M2 =\n"<< M2 <<std::endl <<std::endl;
-
-// std::cout <<"ceil(2.5) = "<< std::ceil(2.5)<<std::endl <<std::endl;
-
-//std::cout <<"a0_2 =\n "<< a0_2.replicate(1,n) <<std::endl <<std::endl;
-// std::cout <<"a1 =\n "<< a1_2.replicate(1,n) <<std::endl <<std::endl;
-// std::cout <<"a2 =\n "<< a2_2.replicate(1,n) <<std::endl <<std::endl;
-
-
-
-// Eigen::Map<Eigen::ArrayXd,0,Eigen::InnerStride<2> > v2(Y.row().data(), Y.ro);
-// std::cout << "Even:" << v2 << std::endl;
-
-// Eigen::Map<Eigen::ArrayXd,0,Eigen::InnerStride<>> v2(X.data(), X.size()/2);
-// double out = simps(X,Y);
-
-
 
 // Rotor inflow
 //  Inflow Models
     if ((V != 0 && AOA != 90) && (_oper->inflow_Type != 1) && (_oper->inflow_Type != 5)){
         _oper->inflow_Type = 1; // Switch to FF model if case 1 or 2 is accidentally selected.
-        // warning('Inflow reverting to uniform momentum with FF inflow model, Vrp_p =/= 0. Rotor had edgewise velocity component');
+        std::cout << " ** warning:\n Inflow reverting to uniform momentum with FF inflow model, Vrp_p =/= 0. Rotor had edgewise velocity component";
     }
                                                                                         //  ??                 
     // if (strcmp(_oper->toggle_Visc,'off') && _oper->inflow_Type > 2 && (V == 90 || _flow->inflow_angle)){

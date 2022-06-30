@@ -40,12 +40,16 @@
 #include "common.h"
 #include <cmath>
 #include <cstring>
+#include <fstream>
 
 typedef struct {
   Eigen::ArrayXd raduis, r_R, chord, c_R, beta;
   int station, blades;
   double modify_Pitch, scale_Raduis;
   std::vector<std::string> airfoil;
+  double airfoil5_database [31][721][3];
+  double airfoil10_database [31][721][3];
+  double airfoil15_database [31][721][3];
 }Blade;
 
 typedef struct {
@@ -186,6 +190,33 @@ class GazeboMotorModel : public MotorModel, public ModelPlugin {
   Flow flow_; Flow* FlowPtr = &flow_;
   Oper oper_; Oper* OperPtr = &oper_;
 
+  void loadAirfoilDatabase(double airfoil_database[31][721][3], std::string filename){
+    int num_Re = 31;
+    int num_angle = 721;
+    int num_coeff = 3;
+
+    std::ifstream file_input(filename);
+
+    if(!file_input.is_open()){
+      std::cout << "couldn't open "<< filename <<std::endl;
+    }
+        
+        for (int Re = 0; Re < num_Re ; Re++) 
+        {
+            for (int AoA = 0; AoA < num_angle; AoA++) 
+            {
+              for (int coeff = 0; coeff < num_coeff; coeff++) 
+              {
+                file_input >> airfoil_database[Re][AoA][coeff]; 
+              }
+            }
+        }
+
+    file_input.close();
+
+  }
+
+
   double trapz(Eigen::ArrayXd X, Eigen::ArrayXd Y){ 
     
     int size = X.size();
@@ -195,18 +226,38 @@ class GazeboMotorModel : public MotorModel, public ModelPlugin {
     return outPut;
     }
 
-  // double simps(Eigen::ArrayXd X, Eigen::ArrayXXd Y){ 
+  Eigen::ArrayXd simps(Eigen::ArrayXd X, Eigen::ArrayXXd Y){ 
+    int n = Y.cols();
+    int sizeX = X.size();
 
-  //   int m = Y.rows();
-  //   int n = Y.cols();
+    Eigen::ArrayXd h = X.tail(sizeX-1)-X.head(sizeX-1);
+    Eigen::ArrayXd dx1 = h.head(h.size()-1);
+    Eigen::ArrayXd dx2 = h.tail(h.size()-1);
 
-  //   double sizeX = X.size();
-  //   Eigen::ArrayXd h = X.tail(sizeX-1)-X.head(sizeX-1);
-  //   Eigen::Map<ArrayXd,0,InnerStride<2>> v2
+    Eigen::ArrayXd Alpha2 = (dx1+dx2)/dx1/6.0;
+    Eigen::ArrayXd a0 = Alpha2*(2*dx1-dx2);
+    Eigen::ArrayXd a1 = Alpha2*(dx1+dx2)*(dx1+dx2)/dx2;
+    Eigen::ArrayXd a2 = Alpha2*dx1/dx2*(2.0*dx2-dx1);
 
-  //   Eigen::ArrayXXd Z= X+Y;
-  //   return sizeY;
-  //   }
+    Eigen::Map<Eigen::ArrayXd,0,Eigen::InnerStride<2>> a0_2(a0.data(), std::round(a0.size()/2.0));
+    Eigen::Map<Eigen::ArrayXd,0,Eigen::InnerStride<2>> a1_2(a1.data(), std::round(a1.size()/2.0));
+    Eigen::Map<Eigen::ArrayXd,0,Eigen::InnerStride<2>> a2_2(a2.data(), std::round(a2.size()/2.0));
+
+    Eigen::ArrayXXd Y_1_m2 = Y.block(0,0,(Y.rows()-2.0),Y.cols());
+    Eigen::ArrayXXd even_Y_1_m2 =  Eigen::ArrayXXd::Map(Y_1_m2.data(),std::round((Y_1_m2.rows())/2.0), Y_1_m2.cols(),Eigen::Stride<Eigen::Dynamic,2>(Y_1_m2.rows(),2));
+
+
+    Eigen::ArrayXXd Y_2_m1 = Y.block(1,0,(Y.rows()-2.0),Y.cols());
+    Eigen::ArrayXXd even_Y_2_m1 = Eigen::ArrayXXd::Map(Y_2_m1.data(),std::round((Y_2_m1.rows())/2.0), Y_2_m1.cols(),Eigen::Stride<Eigen::Dynamic,2>(Y_2_m1.rows(),2));
+
+
+    Eigen::ArrayXXd Y_3_m = Y.block(2,0,(Y.rows()-2.0),Y.cols());
+    Eigen::ArrayXXd even_Y_3_m = Eigen::ArrayXXd::Map(Y_3_m.data(),std::round((Y_3_m.rows())/2.0), Y_3_m.cols(),Eigen::Stride<Eigen::Dynamic,2>(Y_3_m.rows(),2));
+
+    Eigen::ArrayXXd Z = a0_2.replicate(1,n)*even_Y_1_m2 + a1_2.replicate(1,n)*even_Y_2_m1 + a2_2.replicate(1,n)*even_Y_3_m;
+
+    return Z.colwise().sum();
+    }
 
 
   physics::ModelPtr model_;
