@@ -281,7 +281,7 @@ void GazeboMotorModel::UpdateForcesAndMoments() {
   OperPtr->inflow_Type = 1;
   OperPtr->toggle_Visc = 1;  // 1 -> "on", 0 -> "off"
   OperPtr->toggle_Vi = 1;    // 1 -> "on", 0 -> "off"
-  // OperPtr->toggle_WIM = 0;    // 1 -> "on", 0 -> "off"
+  OperPtr->toggle_WIM = 0;    // 1 -> "on", 0 -> "off"
 
   BEMT(BladePtr,FlowPtr,OperPtr);
 
@@ -453,46 +453,49 @@ double global_sigma = (B*trapz(y_Span,chord))/((M_PI*(R*R))-(M_PI*(y_Span.coeff(
     //     _oper.inflow_type = 2;
     // } ???
     
-//     double ui,vi,lambda;
+double ui,vi,lambda;
 
-//     // Returns: vi and ui in LOCAL ROTOR reference frame.
-//     try{
-//         switch   (_oper->toggle_Vi){
-//         //  BEMT
-//             case 1:
-//                 switch (_oper->inflow_Type){
-//                     case 1:{
-//                         UniformMomentumFF(_blade);
-//                         lambda = (Vrp_a+vi)/(omega*R);
-//                         ui = 0;
-//                         break;
-//                     }
-//                     case 2:
-//                         // Inflow_small_angles_no_swirl
-//                         ui =  0;
-//                         break;
-//                     case 3:
-//                         // Inflow_small_angles_no_swirl_coeff_lookup
-//                         ui =  0;
-//                         break;
-//                     case 4:
-//                         // Inflow_large_angles_and_swirl
-//                         // ui = (bsxfun(@times,omega_mid,ones(1,azm)))-(ksi.*omega.*R);
-//                         break;
-//                     case 5:
-//                         // Inflow_WIM_single_rotor; // LOCAL COORDINATES TO BLADE POSITION! % Get z (or inflow) component in BLADE coordinate system
-//                         break;
-//                 }
-//         //  BET (No induced velocity)
-//             case 0:
-//                 lambda  = Vrp_a/(omega*R);
-//                 ui =  0;
+    // Returns: vi and ui in LOCAL ROTOR reference frame.
+    try{
+        switch   (_oper->toggle_Vi){
+        //  BEMT
+            case 1:
+                switch (_oper->inflow_Type){
+                    case 1:{
+                        // UniformMomentumFF(_blade);
+                        lambda = (Vrp_a+vi)/(omega*R);
+                        ui = 0;
+                        break;
+                    }
+                    case 2:
+                        // Inflow_small_angles_no_swirl
+                        ui =  0;
+                        break;
+                    case 3:
+                        // Inflow_small_angles_no_swirl_coeff_lookup
+                        ui =  0;
+                        break;
+                    case 4:
+                        // Inflow_large_angles_and_swirl
+                        // ui = (bsxfun(@times,omega_mid,ones(1,azm)))-(ksi.*omega.*R);
+                        break;
+                    case 5:
+                        // Inflow_WIM_single_rotor; // LOCAL COORDINATES TO BLADE POSITION! % Get z (or inflow) component in BLADE coordinate system
+                        break;
+                }
+        //  BET (No induced velocity)
+            case 0:
+                lambda  = Vrp_a/(omega*R);
+                ui =  0;
         
-//     }}
-//     catch(){ // Catch when the induced velocity is non-real
-//         std::cout << "**warning  Error in inflow calculaiton: Reverting now to BET forumlation','on','backtrace','on','verbose";
-//         lambda  = Vrp_a/(omega*R);
-//     }
+    }
+    }
+    catch(const std::exception& e){ // Catch when the induced velocity is non-real
+        std::cerr << e.what() << '\n';
+        std::cout << "**warning  Error in inflow calculaiton: Reverting now to BET forumlation','on','backtrace','on','verbose";
+        lambda  = Vrp_a/(omega*R);
+    }
+
     
 // // Blade velocities, sectional coefficients and adjacent wake effects
 

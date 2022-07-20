@@ -67,6 +67,7 @@ typedef struct {
   int inflow_Type;
   int toggle_Visc; 
   int toggle_Vi; 
+  int toggle_WIM;
 }Oper;
 
 // struct Flow {};
@@ -146,7 +147,7 @@ class GazeboMotorModel : public MotorModel, public ModelPlugin {
   virtual void Load(physics::ModelPtr _model, sdf::ElementPtr _sdf);
   virtual void OnUpdate(const common::UpdateInfo & /*_info*/);
   void BEMT(Blade* _blade,Flow* _flow,Oper* _oper);
-  void UniformMomentumFF();
+  // void UniformMomentumFF();
 
 
  private:
