@@ -440,6 +440,9 @@ double J = V/(_oper->rps*2*R);  // Propeller advance ratio.
 // Global solidity. Excluding hub area
 double global_sigma = (B*trapz(y_Span,chord))/((M_PI*(R*R))-(M_PI*(y_Span.coeff(0)*y_Span.coeff(0))));  //Sectional solidity ratio.
 
+double* clcdcm = coeffLookup(10000, -180 ,_blade->airfoil15_database) ;
+
+std::cout << "CL = " << clcdcm[0] << "    "<< "CD = " << clcdcm[1] << "    "<< "CM = " << clcdcm[2] << "    "<<std::endl;
 
 // Rotor inflow
 //  Inflow Models
@@ -454,6 +457,8 @@ double global_sigma = (B*trapz(y_Span,chord))/((M_PI*(R*R))-(M_PI*(y_Span.coeff(
     // } ???
     
 double ui,vi,lambda;
+
+
 
     // Returns: vi and ui in LOCAL ROTOR reference frame.
     try{

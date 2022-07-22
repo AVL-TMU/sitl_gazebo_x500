@@ -8,6 +8,7 @@ models/iris/*.sdf
 .*.sw?
 *-gen.sdf
 *.sdf.last_generated
+.vscode
 
 models/3DR_gps_mag/3DR_gps_mag.sdf
 models/c920/c920.sdf

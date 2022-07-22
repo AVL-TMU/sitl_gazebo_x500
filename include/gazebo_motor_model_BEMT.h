@@ -191,6 +191,7 @@ class GazeboMotorModel : public MotorModel, public ModelPlugin {
   Flow flow_; Flow* FlowPtr = &flow_;
   Oper oper_; Oper* OperPtr = &oper_;
 
+
   void loadAirfoilDatabase(double airfoil_database[31][721][3], std::string filename){
     int num_Re = 31;
     int num_angle = 721;
@@ -216,7 +217,6 @@ class GazeboMotorModel : public MotorModel, public ModelPlugin {
     file_input.close();
 
   }
-
 
   double trapz(Eigen::ArrayXd X, Eigen::ArrayXd Y){ 
     
@@ -260,7 +260,17 @@ class GazeboMotorModel : public MotorModel, public ModelPlugin {
     return Z.colwise().sum();
     }
 
-
+  double* coeffLookup(int Re, double alpha, double  airfoil_database[31][721][3]){
+    int i = Re / 10000;
+    int j = (int) (alpha + 180)*2;
+    double* outPut = new double[3];
+    outPut[0] = airfoil_database[i][j][0];
+    outPut[1] = airfoil_database[i][j][1];
+    outPut[2] = airfoil_database[i][j][2];
+    
+    return outPut;
+    
+  }
   physics::ModelPtr model_;
   physics::JointPtr joint_;
   common::PID pid_;
