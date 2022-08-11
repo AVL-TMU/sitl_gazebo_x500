@@ -42,6 +42,7 @@
 #include <cstring>
 #include <fstream>
 
+
 typedef struct {
   Eigen::ArrayXd raduis, r_R, chord, c_R, beta;
   int station, blades;
@@ -50,13 +51,21 @@ typedef struct {
   double airfoil5_database [31][721][3];
   double airfoil10_database [31][721][3];
   double airfoil15_database [31][721][3];
+  Eigen::ArrayXd chord_Mid, omega_Mid, sigma_Mid;
+
+
+  Eigen::ArrayXd dT, dD, dL, dCT;
+  double T, D, L, CT;
 }Blade;
 
 typedef struct {
   double rho = 1.225;
   double mu = 1.8e-5;
   double inflow_Angle;
-  double V;
+  double V, Vrp_a, Vrp_p;
+  Eigen::ArrayXd Vaz_perp, Vaz_tang, V_R;
+  double Re_mid;
+  double ui,vi,lambda;
 }Flow;
 
 typedef struct {
@@ -147,7 +156,7 @@ class GazeboMotorModel : public MotorModel, public ModelPlugin {
   virtual void Load(physics::ModelPtr _model, sdf::ElementPtr _sdf);
   virtual void OnUpdate(const common::UpdateInfo & /*_info*/);
   void BEMT(Blade* _blade,Flow* _flow,Oper* _oper);
-  // void UniformMomentumFF();
+  void UniformMomentumFF(Blade* _blade,Flow* _flow);
 
 
  private:
@@ -261,8 +270,10 @@ class GazeboMotorModel : public MotorModel, public ModelPlugin {
     }
 
   double* coeffLookup(int Re, double alpha, double  airfoil_database[31][721][3]){
-    int i = Re / 10000;
-    int j = (int) (alpha + 180)*2;
+    int i = (int) (Re / 10000);
+    int j = (int) ((std::round(alpha*2.0)/2.0 + 180)*2.0);
+    // std::cout << "alpha="<<std::round(alpha*2.0)/2.0 << "   i= "<< i<< "   j="<<j<<"    ";
+
     double* outPut = new double[3];
     outPut[0] = airfoil_database[i][j][0];
     outPut[1] = airfoil_database[i][j][1];
@@ -271,6 +282,7 @@ class GazeboMotorModel : public MotorModel, public ModelPlugin {
     return outPut;
     
   }
+
   physics::ModelPtr model_;
   physics::JointPtr joint_;
   common::PID pid_;

@@ -181,8 +181,6 @@ blade_.station = 20; blade_.blades = 2; blade_.scale_Raduis = 1; blade_.modify_P
 blade_.airfoil ={"airfoil5","airfoil5","airfoil5","airfoil5","airfoil5","airfoil10","airfoil10","airfoil10","airfoil10","airfoil10","airfoil10","airfoil10",
 "airfoil15","airfoil15","airfoil15","airfoil15","airfoil15","airfoil15","airfoil15","airfoil15"};
 
-oper_.azimuth_Num = 8;
-
 std::string filepath_airfoil5 = "/home/aminys/PX4-Autopilot/Tools/sitl_gazebo/resources/airfoil_database/airfoil5_coeff_database.txt";
 loadAirfoilDatabase(BladePtr->airfoil5_database,filepath_airfoil5);
 
@@ -276,7 +274,8 @@ void GazeboMotorModel::UpdateForcesAndMoments() {
   FlowPtr->V = 5.0;
   FlowPtr->inflow_Angle = 10.0* M_PI/180.0;
   // OperPtr-> rps = real_motor_velocity ;
-  OperPtr-> rps = 3000.0;
+  OperPtr-> rps = 3000.0/60.0;
+  OperPtr->azimuth_Num = 8;
 
   OperPtr->inflow_Type = 1;
   OperPtr->toggle_Visc = 1;  // 1 -> "on", 0 -> "off"
@@ -395,54 +394,53 @@ double V = _flow->V;                                // Flight speed in [m/s].
 double AOA = _flow->inflow_Angle;                   // Vehicle Angle of Attack, Inflow angle to rotor plane [rad]
 double station = _blade->station;                   // Number of stations
 double B = _blade->blades;                          // Number of blades.
-double R = _blade->raduis.coeff(station);           // Rotor radius.
+double R = _blade->raduis.coeff(station-1);           // Rotor radius.
 Eigen::ArrayXd chord = _blade->c_R * R;             // Dimensional chord lengths [m] 
 Eigen::ArrayXd y_Span = _blade->r_R * R;            // 
-double omega = _oper->rps * 2 * M_PI;
+double omega = _oper->rps * 2.0 * M_PI;
 
 // Azimuth position setup
 double azm = _oper->azimuth_Num;
 Eigen::ArrayXd azimuth;
-if (azm == 2)
+if (azm == 2.0)
 {
-  azimuth << M_PI/2,3*M_PI/2;
+  azimuth << M_PI/2.0,3.0*M_PI/2.0;
 }else{
-  azimuth.LinSpaced(azm,0,2*M_PI*(1-1/azm));
+  azimuth = Eigen::ArrayXd::LinSpaced(azm,0,2.0*M_PI*(1.0-1.0/azm));
 }
+
+
 
 // Mid-station setup
 Eigen::ArrayXd span_Mid = (y_Span.head(station-1)+y_Span.tail(station-1))/2.0;
 Eigen::ArrayXd beta_Mid = (_blade->beta.head(station-1)+_blade->beta.tail(station-1))/2.0;
 Eigen::ArrayXd r_R_Mid = (_blade->r_R.head(station-1)+_blade->r_R.tail(station-1))/2.0;
-Eigen::ArrayXd chord_Mid = (chord.head(station-1)+chord.tail(station-1))/2.0;
+_blade->chord_Mid = (chord.head(station-1)+chord.tail(station-1))/2.0;
 std::vector<std::string> airfoil_Mid = _blade->airfoil;
 airfoil_Mid.erase(airfoil_Mid.begin());
-Eigen::ArrayXd sigma_Mid = (B*chord_Mid)/(2*M_PI*span_Mid);
+_blade->sigma_Mid = (B*_blade->chord_Mid)/(2*M_PI*span_Mid);
 
 // Initial calculations
     //  0 [deg] is back of rotor plane. Spins CCW: blade advances first
-Eigen::ArrayXd omega_Mid = span_Mid*omega;
+_blade->omega_Mid = span_Mid*omega;
 
 // Velocity component normal to rotor plane
-double Vrp_a = V * sin(AOA);
-double Vrp_p = V * cos(AOA);
+_flow->Vrp_a = V * sin(AOA);
+_flow->Vrp_p = V * cos(AOA);
 
 //  Velocity component parallel to disk, wrt blade frame
-Eigen::ArrayXd Vaz_perp = Vrp_p * azimuth.sin();
-Eigen::ArrayXd Vaz_tang = Vrp_p * azimuth.cos();
+_flow->Vaz_perp = _flow->Vrp_p * azimuth.sin();
+_flow->Vaz_tang = _flow->Vrp_p * azimuth.cos();
 
 // Advance ratios
-double mu_x = Vrp_p/(omega*R);       // Rotor advance ratio parallel to disk (tangential).
-double mu_z = Vrp_a/(omega*R);       // Rotor advance ratio normal to disk (axial).
+double mu_x = _flow->Vrp_p/(omega*R);       // Rotor advance ratio parallel to disk (tangential).
+double mu_z = _flow->Vrp_a/(omega*R);       // Rotor advance ratio normal to disk (axial).
 double mu_freestream = V/(omega*R);  // Freestream advance ratio
 double J = V/(_oper->rps*2*R);  // Propeller advance ratio.
     
 // Global solidity. Excluding hub area
 double global_sigma = (B*trapz(y_Span,chord))/((M_PI*(R*R))-(M_PI*(y_Span.coeff(0)*y_Span.coeff(0))));  //Sectional solidity ratio.
 
-double* clcdcm = coeffLookup(10000, -180 ,_blade->airfoil15_database) ;
-
-std::cout << "CL = " << clcdcm[0] << "    "<< "CD = " << clcdcm[1] << "    "<< "CM = " << clcdcm[2] << "    "<<std::endl;
 
 // Rotor inflow
 //  Inflow Models
@@ -456,7 +454,7 @@ std::cout << "CL = " << clcdcm[0] << "    "<< "CD = " << clcdcm[1] << "    "<< "
     //     _oper.inflow_type = 2;
     // } ???
     
-double ui,vi,lambda;
+
 
 
 
@@ -467,18 +465,18 @@ double ui,vi,lambda;
             case 1:
                 switch (_oper->inflow_Type){
                     case 1:{
-                        // UniformMomentumFF(_blade);
-                        lambda = (Vrp_a+vi)/(omega*R);
-                        ui = 0;
+                        UniformMomentumFF(_blade, _flow);
+                        _flow->lambda = (_flow->Vrp_a+_flow->vi)/(omega*R);
+                        _flow->ui = 0;
                         break;
                     }
                     case 2:
                         // Inflow_small_angles_no_swirl
-                        ui =  0;
+                        _flow->ui =  0;
                         break;
                     case 3:
                         // Inflow_small_angles_no_swirl_coeff_lookup
-                        ui =  0;
+                        _flow->ui =  0;
                         break;
                     case 4:
                         // Inflow_large_angles_and_swirl
@@ -490,15 +488,15 @@ double ui,vi,lambda;
                 }
         //  BET (No induced velocity)
             case 0:
-                lambda  = Vrp_a/(omega*R);
-                ui =  0;
+                _flow->lambda  = _flow->Vrp_a/(omega*R);
+                _flow->ui =  0;
         
     }
     }
     catch(const std::exception& e){ // Catch when the induced velocity is non-real
         std::cerr << e.what() << '\n';
         std::cout << "**warning  Error in inflow calculaiton: Reverting now to BET forumlation','on','backtrace','on','verbose";
-        lambda  = Vrp_a/(omega*R);
+        _flow->lambda  = _flow->Vrp_a/(omega*R);
     }
 
     
@@ -636,27 +634,34 @@ double ui,vi,lambda;
 // //         CMx         =       Mx./(flow.rho.*(pi*R^2)*(omega*R)^2*R);  % Rolling moment, rotor
 // //         CMy         =       My./(flow.rho.*(pi*R^2)*(omega*R)^2*R);  % Pitching moment, rotor
     
-// //     % Blade loading coefficients averaged over full rotation      
-//         CT_sigma    =      (CT)./global_sigma;                       % Solidity weighted thrust (blade loading), rotor
-//         CQ_sigma    =      (CQ)./global_sigma;                       % Solidity weighted Torque, rotor
-//         CP_sigma    =      (CP)./global_sigma;                       % Solidity weighted Power, rotor
-//         CNx_sigma   =      (CNx)./global_sigma;                      % Solidity weighted Normal x force, rotor
-//         CNy_sigma   =      (CNy)./global_sigma;                      % Solidity weighted Normal y force, rotor 
-//         CMx_sigma   =      (CMx)./global_sigma;                      % Solidity weighted Normal x moment, rotor
-//         CMy_sigma   =      (CMy)./global_sigma;                      % Solidity weighted Side y moment, rotor
-        
-//     % Rotor Figure of Merit    
-//         FM          =      (CT^(3/2)/(sqrt(2)*CP));                  % Figure of Merit
-    
-//     % Propeller force coefficients averaged over full rotation, propeller convention    
-//         Ctp         =      T./(flow.rho.*rps^2.*diameter^4);         % Thrust, propeller
-//         Cqp         =      Q./(flow.rho.*rps^2.*diameter^5);         % Torque, propeller
-//         Cpp         =      P./(flow.rho.*rps^3.*diameter^5);         % Power, propeller
-//         Cnxp        =      Nx./(flow.rho.*rps^2.*diameter^4);        % Normal x force, propeller
-//         Cnyp        =      Ny./(flow.rho.*rps^2.*diameter^4);        % Normal y force, propeller
-//         Cnsump      =      Nsum./(flow.rho.*rps^2.*diameter^4);      % Normal force sum, propeller 
 
 
 }
+void GazeboMotorModel::UniformMomentumFF(Blade* _blade,Flow* _flow){
+_flow->vi = 0; _flow-> ui = 0;
+_flow->V_R = (pow((_flow->Vrp_a +_flow->vi),2.0) + (_flow->Vaz_perp.transpose().replicate(_blade->omega_Mid.rows(),1) + _blade->omega_Mid.replicate(1, _flow->Vaz_perp.rows()) - _flow->ui).square()).sqrt();
+
+// std::cout<<" V_R = "<< _flow->V_R << std::endl<< std::endl;
+std::cout<<"  check1 =\n "<<  _flow->Vaz_perp.transpose().replicate(_blade->omega_Mid.rows(),1) << std::endl<< std::endl;
+std::cout<<"  check2 =\n "<<  _blade->omega_Mid.replicate(1, _flow->Vaz_perp.rows()) << std::endl<< std::endl;
+
+std::cout<<"  check3 =\n "<<  _flow->Vaz_perp.transpose().replicate(_blade->omega_Mid.rows(),1) + _blade->omega_Mid.replicate(1, _flow->Vaz_perp.rows()) - _flow->ui<< std::endl<< std::endl;
+std::cout<<"  check4 =\n "<<  (_flow->Vaz_perp.transpose().replicate(_blade->omega_Mid.rows(),1) + _blade->omega_Mid.replicate(1, _flow->Vaz_perp.rows()) - _flow->ui).square()<< std::endl<< std::endl;
+
+// std::cout<<"  flow->Vaz_perp^T col 1=\n "<< _flow->Vaz_perp.transpose().cols() << std::endl<< std::endl;
+// std::cout<<"  _blade->omega_Mid row 19=\n "<< _blade->omega_Mid.rows() << std::endl<< std::endl;
+// std::cout<<"  _blade->omega_Mid col 1=\n "<< _blade->omega_Mid.cols() << std::endl<< std::endl;
+
+
+
+//  std::cout<< _flow->Vaz_perp << std::endl<< std::endl;
+//  std::cout<< _blade->omega_Mid << std::endl<< std::endl;
+
+// _flow->Re_Mid = 
+// double* coeff_AF15 = coeffLookup(_flow->Re_Mid, _flow->inflow_Angle ,_blade->airfoil15_database) ;
+
+
+}
+
 GZ_REGISTER_MODEL_PLUGIN(GazeboMotorModel);
 }
