@@ -639,10 +639,11 @@ double global_sigma = (B*trapz(y_Span,chord))/((M_PI*(R*R))-(M_PI*(y_Span.coeff(
 }
 void GazeboMotorModel::UniformMomentumFF(Blade* _blade,Flow* _flow){
 _flow->vi = 0; _flow-> ui = 0;
-_flow->V_R = (pow((_flow->Vrp_a +_flow->vi),2.0) + (_flow->Vaz_perp.transpose().replicate(_blade->omega_Mid.rows(),1) + _blade->omega_Mid.replicate(1, _flow->Vaz_perp.rows()) - _flow->ui).square()).sqrt();
+_flow->V_R = (pow((_flow->Vrp_a +_flow->vi),2.0) + (_flow->Vaz_perp.replicate(1,_blade->omega_Mid.rows()).transpose() + _blade->omega_Mid.replicate(1, _flow->Vaz_perp.rows()) - _flow->ui).square()).sqrt();
+
 
 // std::cout<<" V_R = "<< _flow->V_R << std::endl<< std::endl;
-std::cout<<"  check1 =\n "<<  _flow->Vaz_perp.transpose().replicate(_blade->omega_Mid.rows(),1) << std::endl<< std::endl;
+std::cout<<"  check1 =\n "<<  _flow->Vaz_perp.replicate(1,_blade->omega_Mid.rows()) << std::endl<< std::endl;
 std::cout<<"  check2 =\n "<<  _blade->omega_Mid.replicate(1, _flow->Vaz_perp.rows()) << std::endl<< std::endl;
 
 std::cout<<"  check3 =\n "<<  _flow->Vaz_perp.transpose().replicate(_blade->omega_Mid.rows(),1) + _blade->omega_Mid.replicate(1, _flow->Vaz_perp.rows()) - _flow->ui<< std::endl<< std::endl;
